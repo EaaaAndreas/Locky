@@ -7,4 +7,8 @@ dependencies = [
 ]
 
 [tool.uv.workspace]
-members = ["web", "locks"]
+members = [
+    "web",
+    "locks",
+    "Locky",
+]
