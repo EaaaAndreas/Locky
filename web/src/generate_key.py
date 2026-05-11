@@ -30,6 +30,18 @@ def decrypt_data(key=sha256(b'{getenv("SECRET_KEY")}').hexdigest(), encrypted_da
 
     return decrypted_data.decode()
 
+def _insert_key(rand_key:None, locker_nr=None):
+    insert_query(f"INSERT INTO lockers WHERE locker_nr = {locker_nr} VALUES rand_key;")
+    return 
+
+def generate_locker_key(locker_nr:str) -> str:
+    rand_key = urandom(32)
+    _insert_key(rand_key, locker_nr)
+    token = generate_jwt(rand_key)
+    return token 
+    
+
+
 key = sha256(b"superdupersecretkey").hexdigest()
 test = encrypt_data(key=key, plaintext="testing encryption")
 print("Encrypted:", test)
