@@ -22,7 +22,6 @@ def decrypt_data(key=sha256(b'{getenv("SECRET_KEY")}').hexdigest(), encrypted_da
 
     iv = encrypted_data_bytes[:16]
     ciphertext = encrypted_data_bytes[16:]
-
     cipher = Cipher(algorithms.AES(key), modes.CFB(iv), backend=default_backend())
     decryptor = cipher.decryptor()
 
@@ -30,16 +29,25 @@ def decrypt_data(key=sha256(b'{getenv("SECRET_KEY")}').hexdigest(), encrypted_da
 
     return decrypted_data.decode()
 
+
 def _insert_key(rand_key:None, locker_nr=None):
-    insert_query(f"INSERT INTO lockers WHERE locker_nr = {locker_nr} VALUES rand_key;")
+    encrypted_key = encrypt_data(plaintext=rand_key)
+    insert_query(f"INSERT INTO lockers WHERE locker_nr = {locker_nr} VALUES {encrypted_key};")
     return 
+
 
 def generate_locker_key(locker_nr:str) -> str:
     rand_key = urandom(32)
     _insert_key(rand_key, locker_nr)
     token = generate_jwt(rand_key)
     return token 
-    
+
+
+def get_key(email)
+    key = select_query(f"SELECT key FROM keys WHERE user = {email}")
+    decrypted_key = decrypt_data(encrypted_data=key)
+    token = generate_jwt(decrypted_key)
+    return token 
 
 
 key = sha256(b"superdupersecretkey").hexdigest()
