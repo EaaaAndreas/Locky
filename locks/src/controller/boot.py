@@ -3,7 +3,6 @@ from utime import sleep_ms
 from network import WLAN, STAT_CONNECTING
 import json
 from led import Led
-# sleep_ms(50)
 
 board_led = Led("LED", Pin.OUT, value=0, timer=Timer(hard=True))
 board_led.blink(200)
