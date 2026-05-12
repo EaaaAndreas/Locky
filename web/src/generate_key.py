@@ -3,7 +3,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from hashlib import sha256 
 from os import urandom, getenv 
-import base64 
+import base64
+import generate_token  
 
 def __encrypt_data(key=sha256(b'{getenv("SECRET_KEY")}').hexdigest(), plaintext=None) -> str:
     key = sha256(b'{key}').digest()
@@ -36,19 +37,26 @@ def __insert_key(rand_key:None, locker_nr=None):
     return 
 
 
-def generate_locker_key(locker_nr:str) -> str:
+def generate_locker_key(email:str, locker_nr:str) -> str:
+
     rand_key = urandom(32)
-    __insert_key(rand_key, locker_nr)
-    token = generate_jwt(rand_key)
+    encrypted_key = __encrypt_data(plaintext = rand_key)
+    __insert_key(encrypted_key,email, locker_nr)
+    token = generate_jwt_token(key = encrypted_key, email = email)
     return token 
 
 
 def get_key(email)
     key = select_query(f"SELECT key FROM keys WHERE user = {email}")
-    decrypted_key = __decrypt_data(encrypted_data=key)
-    token = generate_jwt(decrypted_key)
-    return token 
+    
+    token = generate_jwt_token(email, key)
+    return token
 
+
+
+def unpack_key(token):
+    key = unpack_jwt_token(token)
+    return key
 
 key = sha256(b"superdupersecretkey").hexdigest()
 test = __encrypt_data(key=key, plaintext="testing encryption")
