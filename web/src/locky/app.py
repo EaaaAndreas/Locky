@@ -1,4 +1,21 @@
 from flask import Flask, render_template, redirect, url_for, request, session, flash
+from hashlib import sha256
+from os import getenv
+import sql_scripts as slq
+
+def hash_passwd(passwd):
+    first_hash = sha256(passwd.encode('utf-8').hexdigest())
+    hash_with_salt = first_hash = getenv("PASSWD_HASH_KEY")
+    final_hash = sha256(hash_with_salt.encode('utf-8').hexdigest())
+    return final_hash 
+
+def login_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args **kwargs):
+        if "user" not in session:
+            return redirect(url_for("login"))
+    return decorated
 
 app = Flask(__name__)
 app.secret_key = "locky-secret-skift-mig"  # TODO: skift til noget sikkert i produktion
@@ -18,18 +35,6 @@ DUMMY_SKABE = [
     {"id": "11", "size": "M", "status": "available","floor": 2, "section": "C"},
     {"id": "12", "size": "L", "status": "available","floor": 2, "section": "C"},
 ]
-
-# ── Helper ─────────────────────────────────────────────────
-def login_required(f):
-    from functools import wraps
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if "user" not in session:
-            return redirect(url_for("login"))
-        return f(*args, **kwargs)
-    return decorated
-
-
 # ── Routes ─────────────────────────────────────────────────
 
 @app.route("/")
@@ -39,56 +44,38 @@ def index():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    if "user" in session:
-        return redirect(url_for("booking"))
-
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "")
-
-        # TODO: erstat med rigtig DB-query, f.eks.:
-        # user = db.execute("SELECT * FROM brugere WHERE username = ?", username)
-        # if user and check_password_hash(user.password, password):
-
-        if username and password:  # placeholder-validering
-            session["user"] = username
-            flash(f"Velkommen, {username}!", "success")
-            return redirect(url_for("booking"))
-        else:
-            flash("Forkert brugernavn eller adgangskode.", "error")
-
+    if method == "POST":
+        email = request.form.get("email")
+        passwd = request.form.get("passwd")
+        try:
+            user_info = sql.get_user_data(email)
+            if hash_passwd(passwd) == user_info["passwd"]:
+                    session["user"] = email
+                    return redirect(url_for("home"))
+            else:
+                flash("Email or password was incorrect")
+        except ValueError:
+            return render_template("login.html")
     return render_template("login.html")
 
 
 @app.route("/registrer", methods=["GET", "POST"])
 def registrer():
-    if "user" in session:
-        return redirect(url_for("booking"))
-
-    if request.method == "POST":
-        username  = request.form.get("username", "").strip()
-        password  = request.form.get("password", "")
-        password2 = request.form.get("password2", "")
-        fornavn   = request.form.get("fornavn", "").strip()
-        efternavn = request.form.get("efternavn", "").strip()
-
-        if password != password2:
-            flash("Adgangskoderne matcher ikke.", "error")
-            return render_template("registrer.html")
-
-        # TODO: gem i DB, f.eks.:
-        # db.execute("INSERT INTO brugere (username, password, fornavn, efternavn) VALUES (?,?,?,?)",
-        #            username, generate_password_hash(password), fornavn, efternavn)
-
-        session["user"] = username
-        flash(f"Konto oprettet! Velkommen, {fornavn}!", "success")
-        return redirect(url_for("booking"))  # auto-redirect efter registrering
-
-    return render_template("registrer.html")
+    if method == "POST":
+        mail = request.form.get("email")
+        passwd = request.form.get("passwd")
+        mail_list = sql.get_email_list()
+        if mail in mail_list:
+            flash("Account already registered for this email")
+        else:
+            hashed_passwd = hash_passwd(passwd)
+            sql.create_user(email, hashed_passwd)
+            session["user"] = email
+            return redirect(url_for("home"))
+    return render_template("register.html")
 
 
 @app.route("/booking")
-@login_required
 def booking():
     # TODO: hent fra DB, f.eks.:
     # skabe = db.execute("SELECT * FROM skabe ORDER BY id")
@@ -100,7 +87,6 @@ def booking():
 
 
 @app.route("/book_skab", methods=["POST"])
-@login_required
 def book_skab():
     skab_id = request.form.get("skab_id")
 
@@ -108,29 +94,19 @@ def book_skab():
     # db.execute("UPDATE skabe SET status='occupied', booket_af=? WHERE id=?",
     #            session["user"], skab_id)
 
-    flash(f"Skab #{skab_id.zfill(2)} er nu booket!", "success")
+    flash(f"Skab #{skab_id.zfill(2)} er nu booket!", "success") 
     return redirect(url_for("manage_skab"))
 
 
-@app.route("/manage_skab")
+@app.route("/home")
 @login_required
-def manage_skab():
-    # TODO: hent brugerens skab fra DB, f.eks.:
-    # skab = db.execute("SELECT * FROM skabe WHERE booket_af = ?", session["user"]).fetchone()
-    # logs = db.execute("SELECT * FROM log WHERE skab_id = ? ORDER BY tid DESC LIMIT 10", skab["id"])
+def home():
 
-    # Dummy: vis skab #07 som eksempel
-    skab = {"id": "07", "size": "Medium", "floor": 2, "section": "B", "booket_tid": "I dag 08:32"}
-    logs = [
-        {"ikon": "🔒", "besked": "Skab låst",        "tid": "I dag 10:14"},
-        {"ikon": "🔓", "besked": "Skab åbnet",        "tid": "I dag 10:13"},
-        {"ikon": "📦", "besked": "Booking oprettet",  "tid": "I dag 08:32"},
-    ]
-    return render_template("manage_skab.html", skab=skab, logs=logs, user=session["user"])
+
+    return render_template("manage_skab.html")
 
 
 @app.route("/aaben_skab", methods=["POST"])
-@login_required
 def aaben_skab():
     skab_id = request.form.get("skab_id")
 
@@ -143,26 +119,19 @@ def aaben_skab():
 
 
 @app.route("/laas_skab", methods=["POST"])
-@login_required
 def laas_skab():
     skab_id = request.form.get("skab_id")
 
-    # TODO: send lås-signal til hardware, f.eks.:
-    # requests.post(f"http://laas-controller/lock/{skab_id}")
-    # db.execute("INSERT INTO log (skab_id, besked, ikon) VALUES (?,?,?)", skab_id, "Skab låst", "🔒")
-
-    flash(f"Skab #{str(skab_id).zfill(2)} er nu låst.", "success")
     return redirect(url_for("manage_skab"))
 
 
 @app.route("/frigiv_skab", methods=["POST"])
-@login_required
 def frigiv_skab():
     skab_id = request.form.get("skab_id")
 
     # TODO: frigiv i DB, f.eks.:
     # db.execute("UPDATE skabe SET status='available', booket_af=NULL WHERE id=?", skab_id)
-
+    
     flash(f"Skab #{str(skab_id).zfill(2)} er frigivet.", "success")
     return redirect(url_for("booking"))
 
