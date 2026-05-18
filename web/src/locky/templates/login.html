@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Log ind{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="bg-accent"></div>
+  <div class="auth-box">
+
+    <div class="auth-header">
+      <div class="logo-large">L<span>o</span>cky</div>
+      <div class="tagline">Smart skabsstyring // dit gymnasium</div>
+    </div>
+
+    <div class="auth-card">
+      <h2>Log ind</h2>
+      <form method="POST" action="{{ url_for('login') }}">
+        <div class="form-stack">
+          <div class="form-group">
+            <label>Brugernavn</label>
+            <input type="text" name="username" placeholder="anders.j" required autofocus />
+          </div>
+          <div class="form-group">
+            <label>Adgangskode</label>
+            <input type="password" name="password" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="btn btn-primary btn-full" style="margin-top:.25rem">
+            Log ind →
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="auth-footer">
+      Ny bruger? <a href="{{ url_for('registrer') }}">Opret konto</a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

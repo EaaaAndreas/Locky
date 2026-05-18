@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Booking{% endblock %}
+
+{% block content %}
+<div style="padding-top:60px">
+
+  <div class="booking-hero">
+    <h1>Vælg et <span>skab</span></h1>
+    <p>Vis ledige skabe og book dit næste skab med ét klik.</p>
+  </div>
+
+  <div class="booking-toolbar">
+    <div class="filter-group" id="status-filters">
+      <button class="filter-btn active" onclick="filterLockers('all', this)">Alle</button>
+      <button class="filter-btn" onclick="filterLockers('available', this)">Ledige</button>
+      <button class="filter-btn" onclick="filterLockers('occupied', this)">Optaget</button>
+    </div>
+    <div class="filter-group" id="size-filters" style="margin-left:.5rem">
+      <button class="filter-btn active" onclick="filterSize('all', this)">Alle størrelser</button>
+      <button class="filter-btn" onclick="filterSize('S', this)">S</button>
+      <button class="filter-btn" onclick="filterSize('M', this)">M</button>
+      <button class="filter-btn" onclick="filterSize('L', this)">L</button>
+    </div>
+    <div class="booking-count" id="locker-count"></div>
+  </div>
+
+  <div class="lockers-grid" id="lockers-grid">
+    {% for skab in skabe %}
+    <div class="locker-card {{ skab.status }}"
+         data-status="{{ skab.status }}"
+         data-size="{{ skab.size }}"
+         {% if skab.status == 'mine' %}onclick="window.location='{{ url_for('manage_skab') }}'"{% endif %}>
+      <div class="locker-num">#{{ skab.id|string|zfill(2) }}</div>
+      <span class="badge
+        {% if skab.status == 'available' %}badge-green
+        {% elif skab.status == 'mine' %}badge-orange
+        {% else %}badge-red{% endif %}">
+        {% if skab.status == 'available' %}Ledig
+        {% elif skab.status == 'mine' %}Dit skab
+        {% else %}Optaget{% endif %}
+      </span>
+      <div class="locker-meta">
+        <span class="locker-size">Etage {{ skab.floor }} · Sek. {{ skab.section }} · {{ skab.size }}</span>
+        {% if skab.status == 'available' %}
+          <button class="book-btn" onclick="openBookModal('{{ skab.id }}', '{{ skab.floor }}', '{{ skab.section }}', '{{ skab.size }}', event)">Book</button>
+        {% elif skab.status == 'mine' %}
+          <a href="{{ url_for('manage_skab') }}">
+            <button class="book-btn" style="border-color:var(--orange);background:rgba(255,107,26,.1);color:var(--orange)">Administrér</button>
+          </a>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <!-- Fallback: ingen skabe i DB endnu — vis dummy data -->
+    {% set dummy = [
+      {'id':'01','size':'S','status':'occupied','floor':1,'section':'A'},
+      {'id':'02','size':'M','status':'available','floor':1,'section':'A'},
+      {'id':'03','size':'L','status':'available','floor':1,'section':'A'},
+      {'id':'04','size':'S','status':'occupied','floor':1,'section':'A'},
+      {'id':'05','size':'M','status':'available','floor':1,'section':'B'},
+      {'id':'06','size':'L','status':'occupied','floor':1,'section':'B'},
+      {'id':'07','size':'M','status':'mine',    'floor':2,'section':'B'},
+      {'id':'08','size':'S','status':'available','floor':2,'section':'B'},
+      {'id':'09','size':'L','status':'available','floor':2,'section':'B'},
+      {'id':'10','size':'S','status':'occupied','floor':2,'section':'C'},
+      {'id':'11','size':'M','status':'available','floor':2,'section':'C'},
+      {'id':'12','size':'L','status':'available','floor':2,'section':'C'},
+    ] %}
+    {% for skab in dummy %}
+    <div class="locker-card {{ skab.status }}"
+         data-status="{{ skab.status }}"
+         data-size="{{ skab.size }}"
+         {% if skab.status == 'mine' %}onclick="window.location='{{ url_for('manage_skab') }}'"{% endif %}>
+      <div class="locker-num">#{{ skab.id }}</div>
+      <span class="badge
+        {% if skab.status == 'available' %}badge-green
+        {% elif skab.status == 'mine' %}badge-orange
+        {% else %}badge-red{% endif %}">
+        {% if skab.status == 'available' %}Ledig
+        {% elif skab.status == 'mine' %}Dit skab
+        {% else %}Optaget{% endif %}
+      </span>
+      <div class="locker-meta">
+        <span class="locker-size">Etage {{ skab.floor }} · Sek. {{ skab.section }} · {{ skab.size }}</span>
+        {% if skab.status == 'available' %}
+          <button class="book-btn" onclick="openBookModal('{{ skab.id }}', '{{ skab.floor }}', '{{ skab.section }}', '{{ skab.size }}', event)">Book</button>
+        {% elif skab.status == 'mine' %}
+          <a href="{{ url_for('manage_skab') }}">
+            <button class="book-btn" style="border-color:var(--orange);background:rgba(255,107,26,.1);color:var(--orange)">Administrér</button>
+          </a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% endfor %}
+  </div>
+
+  <footer>
+    <div class="f-logo">Locky</div>
+    <div>Gymnasiet Skabssystem &mdash; 2025</div>
+  </footer>
+</div>
+
+<!-- BOOKING MODAL -->
+<div class="modal-overlay" id="book-modal">
+  <div class="modal">
+    <h3>Book skab <span id="modal-num" style="color:var(--orange)"></span></h3>
+    <p id="modal-desc"></p>
+    <form method="POST" action="{{ url_for('book_skab') }}" id="book-form">
+      <input type="hidden" name="skab_id" id="form-skab-id" />
+      <div class="modal-actions">
+        <button type="submit" class="btn btn-primary" style="flex:1">Book nu</button>
+        <button type="button" class="btn btn-secondary" onclick="closeModal()">Annuller</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  let currentStatusFilter = 'all';
+  let currentSizeFilter   = 'all';
+
+  function updateGrid() {
+    const cards = document.querySelectorAll('.locker-card');
+    let visible = 0;
+    cards.forEach(card => {
+      const s = card.dataset.status;
+      const z = card.dataset.size;
+      const matchStatus = currentStatusFilter === 'all' || s === currentStatusFilter;
+      const matchSize   = currentSizeFilter   === 'all' || z === currentSizeFilter;
+      const show = matchStatus && matchSize;
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    document.getElementById('locker-count').textContent = `Viser ${visible} skabe`;
+  }
+
+  function filterLockers(f, btn) {
+    currentStatusFilter = f;
+    document.querySelectorAll('#status-filters .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateGrid();
+  }
+
+  function filterSize(s, btn) {
+    currentSizeFilter = s;
+    document.querySelectorAll('#size-filters .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    updateGrid();
+  }
+
+  function openBookModal(id, floor, section, size, e) {
+    e.stopPropagation();
+    document.getElementById('modal-num').textContent = `#${id.padStart(2,'0')}`;
+    document.getElementById('modal-desc').textContent =
+      `Etage ${floor}, Sektion ${section}. Størrelse: ${size}. Er du sikker på at du vil booke dette skab?`;
+    document.getElementById('form-skab-id').value = id;
+    document.getElementById('book-modal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('book-modal').classList.remove('open');
+  }
+
+  updateGrid();
+</script>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Registrer{% endblock %}
+
+{% block content %}
+<div class="auth-page">
+  <div class="bg-accent" style="top:15%;right:10%;left:auto"></div>
+  <div class="auth-box">
+
+    <div class="auth-header">
+      <div class="logo-large">L<span>o</span>cky</div>
+      <div class="tagline">Opret ny konto</div>
+    </div>
+
+    <div class="auth-card">
+      <h2>Registrer dig</h2>
+      <form method="POST" action="{{ url_for('registrer') }}">
+        <div class="form-stack">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+            <div class="form-group">
+              <label>Fornavn</label>
+              <input type="text" name="fornavn" placeholder="Anders" required autofocus />
+            </div>
+            <div class="form-group">
+              <label>Efternavn</label>
+              <input type="text" name="efternavn" placeholder="Jensen" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Brugernavn</label>
+            <input type="text" name="username" placeholder="anders.j" required />
+          </div>
+          <div class="form-group">
+            <label>Adgangskode</label>
+            <input type="password" name="password" placeholder="Min. 8 tegn" required />
+          </div>
+          <div class="form-group">
+            <label>Gentag adgangskode</label>
+            <input type="password" name="password2" placeholder="••••••••" required />
+          </div>
+          <button type="submit" class="btn btn-primary btn-full" style="margin-top:.25rem">
+            Opret konto →
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <div class="auth-footer">
+      Har du allerede en konto? <a href="{{ url_for('login') }}">Log ind</a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
