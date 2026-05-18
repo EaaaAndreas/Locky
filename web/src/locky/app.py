@@ -98,12 +98,12 @@ def book_skab():
     return redirect(url_for("manage_skab"))
 
 
-@app.route("/home")
+@app.route("/manage_skab")
 @login_required
-def home():
+def manage_skab():
 
 
-    return render_template("manage_skab.html")
+    return render_template("manage_skab.html", user = session["user"])
 
 
 @app.route("/aaben_skab", methods=["POST"])
