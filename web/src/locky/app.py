@@ -68,7 +68,6 @@ def registrer():
         if mail in mail_list:
             flash("Account already registered for this email")
         else:
-            salt = 
             hashed_passwd = hash_passwd(passwd)
             sql.create_user(email, hashed_passwd)
             session["user"] = email
