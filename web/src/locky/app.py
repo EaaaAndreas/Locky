@@ -1,13 +1,13 @@
 from flask import Flask, render_template, redirect, url_for, request, session, flash
-from hashlib import sha256
+from argon2 import PasswordHasher
 from os import getenv
 import sql_scripts as slq
 
+
+ph = PasswordHasher()
 def hash_passwd(passwd):
-    first_hash = sha256(passwd.encode('utf-8').hexdigest())
-    hash_with_salt = first_hash = getenv("PASSWD_HASH_KEY")
-    final_hash = sha256(hash_with_salt.encode('utf-8').hexdigest())
-    return final_hash 
+    hashed_password = ph.hash(passwd)
+    return hashed_password
 
 def login_required(f):
     from functools import wraps
@@ -49,7 +49,7 @@ def login():
         passwd = request.form.get("passwd")
         try:
             user_info = sql.get_user_data(email)
-            if hash_passwd(passwd) == user_info["passwd"]:
+            if ph.verify(user_info["passwd"], passwd):
                     session["user"] = email
                     return redirect(url_for("home"))
             else:
@@ -68,6 +68,7 @@ def registrer():
         if mail in mail_list:
             flash("Account already registered for this email")
         else:
+            salt = 
             hashed_passwd = hash_passwd(passwd)
             sql.create_user(email, hashed_passwd)
             session["user"] = email
