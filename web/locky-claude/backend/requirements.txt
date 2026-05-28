@@ -1,0 +1,8 @@
+flask
+argon2-cffi
+psycopg2-binary
+PyJWT
+cryptography
+paho-mqtt
+gunicorn
+sqlalchemy

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Mit Skab{% endblock %}
+
+{% block content %}
+<div style="padding-top:60px">
+<div class="manage-layout">
+
+  <div class="manage-header">
+    <a href="{{ url_for('booking') }}" class="back-link">← Tilbage til booking</a>
+    {% if skab %}
+      <h1>Mit <span>Skab</span></h1>
+      <div class="sub">Skab #{{ skab.id|string|zfill(2) }}</div>
+    {% else %}
+      <h1>Ingen <span>aktiv booking</span></h1>
+      <div class="sub">Du har ikke booket et skab endnu.</div>
+    {% endif %}
+  </div>
+
+  {% if skab %}
+  <div class="manage-grid">
+
+    <!-- Locker visual -->
+    <div class="locker-visual">
+      <div class="locker-door" id="locker-door">
+        <div class="door-num">{{ skab.id|string|zfill(2) }}</div>
+        <div class="door-handle"></div>
+      </div>
+      <div class="locker-info">
+        <div class="info-label">Aktiv booking</div>
+        <h2>Skab #{{ skab.id|string|zfill(2) }}</h2>
+        <div class="meta-row">
+          <div class="meta-item">
+            <span class="ml">Booket</span>
+            <span class="mv">{{ skab.booket_tid if skab.booket_tid else 'I dag' }}</span>
+          </div>
+        </div>
+        <span class="badge badge-orange">Aktiv</span>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="lock-status-bar">
+      <div class="status-info">
+        <div class="status-dot" id="status-dot"></div>
+        <div class="status-text">
+          <div class="sl">Lås status</div>
+          <div class="sv" id="status-val">Låst</div>
+        </div>
+      </div>
+      <span class="badge badge-red" id="status-badge">LÅST</span>
+    </div>
+
+    <!-- Åbn -->
+    <div class="control-card">
+      <h3>🔓 Åbn skab</h3>
+      <p>Send signal til skabet om at låse op. Skabet låser automatisk igen efter 30 sekunder.</p>
+      <button class="btn btn-success btn-full" onclick="openLocker('{{ skab.id }}')">Åbn skab nu</button>
+    </div>
+
+    <!-- Lås -->
+    <div class="control-card">
+      <h3>🔒 Lås skab</h3>
+      <p>Lås skabet manuelt. Brug dette hvis du vil sikre at skabet er ordentligt lukket.</p>
+      <button class="btn btn-secondary btn-full" onclick="lockLocker('{{ skab.id }}')">Lås skab</button>
+    </div>
+
+    <!-- Release -->
+    <div class="control-card" style="grid-column:1/-1;border-color:rgba(231,76,60,.3)">
+      <h3>⛔ Afslut booking</h3>
+      <p>Frigiv dit skab, så andre kan booke det. Sørg for at tømme skabet inden du afslutter. Denne handling kan ikke fortrydes.</p>
+      <button class="btn btn-danger" onclick="document.getElementById('release-modal').classList.add('open')">Frigiv skab</button>
+    </div>
+
+
+  </div>
+
+  <!-- RELEASE MODAL -->
+  <div class="modal-overlay" id="release-modal">
+    <div class="modal">
+      <h3 style="color:var(--red)">Frigiv skab #{{ skab.id|string|zfill(2) }}?</h3>
+      <p>Sørg for at tømme skabet inden du fortsætter. Skabet vil straks blive tilgængeligt for andre.</p>
+      <form method="POST" action="{{ url_for('frigiv_skab') }}">
+        <input type="hidden" name="skab_id" value="{{ skab.id }}" />
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-danger" style="flex:1">Frigiv skab</button>
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('release-modal').classList.remove('open')">Annuller</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- Ingen aktiv booking -->
+  <div style="text-align:center;padding:4rem 2rem">
+    <div style="font-size:3rem;margin-bottom:1rem">🔒</div>
+    <p style="color:var(--grey-20);margin-bottom:1.5rem">Du har ikke booket et skab endnu.</p>
+    <a href="{{ url_for('booking') }}"><button class="btn btn-primary">Find et skab →</button></a>
+  </div>
+  {% endif %}
+
+</div>
+<footer>
+  <div class="f-logo">Locky</div>
+</footer>
+</div>
+
+<script>
+  let autoLockTimer = null;
+
+  function setUnlocked() {
+    document.getElementById('locker-door').classList.add('unlocked');
+    document.getElementById('status-dot').classList.add('unlocked');
+    document.getElementById('status-val').textContent = 'Åbent';
+    document.getElementById('status-badge').textContent = 'ÅBENT';
+    document.getElementById('status-badge').className = 'badge badge-green';
+  }
+
+  function setLocked() {
+    document.getElementById('locker-door').classList.remove('unlocked');
+    document.getElementById('status-dot').classList.remove('unlocked');
+    document.getElementById('status-val').textContent = 'Låst';
+    document.getElementById('status-badge').textContent = 'LÅST';
+    document.getElementById('status-badge').className = 'badge badge-red';
+  }
+
+  function openLocker(skabId) {
+    fetch("{{ url_for('aaben_skab') }}", {
+      method: "POST",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"},
+      body: "skab_id=" + skabId
+    }).then(response => {
+      if (response.ok || response.redirected) {
+        setUnlocked();
+        clearTimeout(autoLockTimer);
+        autoLockTimer = setTimeout(() => lockLocker(skabId), 30000);
+      } else {
+        alert("Kunne ikke åbne skabet — adgangstilladelse mangler eller er udløbet.");
+      }
+    });
+  }
+
+  function lockLocker(skabId) {
+    fetch("{{ url_for('laas_skab') }}", {
+      method: "POST",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"},
+      body: "skab_id=" + skabId
+    });
+    setLocked();
+    clearTimeout(autoLockTimer);
+  }
+</script>
+{% endblock %}

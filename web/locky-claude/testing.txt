@@ -1,0 +1,27 @@
+Sikkerhedstests:
+
+MQTTS:
+MQTTS sikrer autenticitet og fortrolighed mellem publisher og broker og mellem broker og subscriber, således at det sikres at beskeder kommer fra den rette afsender og ikke kan aflæses undervejs. Forbindelsen er opgraderet fra ukrypteret MQTT (port 1883) til MQTTS (port 8883) ved at anvende TLS-certifikater til at kryptere forbindelsen. Certifikaterne er selvsignerede i dette tilfælde, men ville i et produktionsmiljø skulle udstedes af en anerkendt CA. I dette lokale projekt er selvsignerede certifikater tilstrækkeligt.
+
+Dette testes ved et opstillet scenarie hvor en controller forsøger anonym adgang, hvilket ikke tillades. Det samme testes med forkert brugernavn/password, hvilket ligeledes fejler. Begge forsøg returnerer RC=5 ("ikke autoriseret"). Mosquitto returnerer samme fejlkode i begge tilfælde — bevidst, for at det ikke skal kunne udledes om et brugernavn eksisterer.
+
+
+ACL:
+Access Control List anvendes til at begrænse adgangsrettigheder. Kun 'server' må publicere (write) og kun 'controller' må abonnere (read). Dette sikrer at der ikke er unødvendige tilladelser der kan misbruges, i tilfælde af at en udefrakommende skulle få adgang til en controller.
+
+Dette testes ved at forbinde en controller og bede den om at publicere til brokeren. Forsøget skal afvises, og som vist i dokumentationen standses handlingen af ACL. Brokeren dropper beskeden stille uden at give klienten en fejlmelding — dette verificeres derfor via en separat subscriber der bekræfter at beskeden aldrig ankommer.
+
+
+JWT:
+JWT-tokenet er adgangsbeviset for at en bruger må åbne et givet skab. En bruger skal ikke være i stand til at åbne andres skabe, og en ondsindet bruger uden token skal ikke kunne åbne nogen skabe.
+Til at teste dette er der opstillet fem tests.
+
+1. En bruger uden login forsøger at åbne et skab. Dette fejler fuldstændigt da der ingen session er at tjekke — brugeren redirectes til login (HTTP 302), hvilket bekræftes i dokumentationen.
+
+2. En bruger er logget ind men har ingen booking. JWT udstedes først ved booking, så dette skal returnere 403 Forbidden — hvilket det også gør.
+
+3. En bruger har booket skab #01 men forsøger at åbne skab #02. Dette skal fejle da payload eksplicit angiver hvilket skab brugeren må åbne. Matcher det ikke, returneres 403 Forbidden — hvilket det også gør.
+
+4. En bruger henter sin JWT-token ud fra sessionen og forsøger at aflæse payload i en JWT-debugger. En normal JWT er Base64-encodet og kan læses i klartekst, men her er tokenet krypteret med AES-256 inden det gemmes — JWT-debuggeren genkender det slet ikke som et gyldigt JWT-token.
+
+5. En bruger der har booket skab #01 forsøger at åbne skab #01. Tokenet dekrypteres og valideres — skabet i payload matcher det ønskede skab og der låses op. Dette returnerer HTTP 302, hvilket er korrekt i Flask der videresender brugeren til næste side fremfor at returnere 200.

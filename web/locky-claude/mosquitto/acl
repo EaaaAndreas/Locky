@@ -1,0 +1,7 @@
+# Kun Flask-serveren må publicere til låse-topics
+user server
+topic write locker/#
+
+# Controlleren må kun subscribe — ikke publicere
+user controller
+topic read locker/#
